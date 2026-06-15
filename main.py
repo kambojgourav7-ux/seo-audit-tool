@@ -3,10 +3,14 @@ from pydantic import BaseModel
 import requests
 from bs4 import BeautifulSoup
 
+from app.crawler.internal_links import get_internal_links
+from app.crawler.site_crawler import crawl_site
+
 app = FastAPI(
     title="SEO Audit Tool",
     version="1.0.0"
 )
+
 
 class AuditRequest(BaseModel):
     url: str
@@ -20,11 +24,17 @@ def home():
     }
 
 
+@app.get("/test")
+def test():
+    return {
+        "message": "test route working"
+    }
+
+
 @app.post("/audit/start")
 def audit_site(data: AuditRequest):
 
     try:
-
         response = requests.get(
             data.url,
             timeout=15,
@@ -39,7 +49,6 @@ def audit_site(data: AuditRequest):
         )
 
         title = ""
-
         if soup.title:
             title = soup.title.get_text(strip=True)
 
@@ -76,3 +85,22 @@ def audit_site(data: AuditRequest):
         return {
             "error": str(e)
         }
+
+
+@app.post("/crawl/links")
+def crawl_links(data: AuditRequest):
+
+    links = get_internal_links(data.url)
+
+    return {
+        "total_links": len(links),
+        "links": links
+    }
+
+
+@app.post("/crawl/site")
+def crawl_entire_site(data: AuditRequest):
+
+    result = crawl_site(data.url)
+
+    return result
