@@ -1,14 +1,20 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import requests
-from bs4 import BeautifulSoup
 
-from app.crawler.internal_links import get_internal_links
 from app.crawler.site_crawler import crawl_site
 
 app = FastAPI(
     title="SEO Audit Tool",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -31,76 +37,8 @@ def test():
     }
 
 
-@app.post("/audit/start")
-def audit_site(data: AuditRequest):
-
-    try:
-        response = requests.get(
-            data.url,
-            timeout=15,
-            headers={
-                "User-Agent": "SEO Audit Tool"
-            }
-        )
-
-        soup = BeautifulSoup(
-            response.text,
-            "lxml"
-        )
-
-        title = ""
-        if soup.title:
-            title = soup.title.get_text(strip=True)
-
-        meta_description = ""
-
-        meta = soup.find(
-            "meta",
-            attrs={"name": "description"}
-        )
-
-        if meta:
-            meta_description = meta.get(
-                "content",
-                ""
-            )
-
-        h1 = ""
-
-        h1_tag = soup.find("h1")
-
-        if h1_tag:
-            h1 = h1_tag.get_text(strip=True)
-
-        return {
-            "url": data.url,
-            "status_code": response.status_code,
-            "title": title,
-            "meta_description": meta_description,
-            "h1": h1
-        }
-
-    except Exception as e:
-
-        return {
-            "error": str(e)
-        }
-
-
-@app.post("/crawl/links")
-def crawl_links(data: AuditRequest):
-
-    links = get_internal_links(data.url)
-
-    return {
-        "total_links": len(links),
-        "links": links
-    }
-
-
 @app.post("/crawl/site")
-def crawl_entire_site(data: AuditRequest):
-
-    result = crawl_site(data.url)
-
+def crawl_site_route(request: AuditRequest):
+    result = crawl_site(request.url)
+    result["siteUrl"] = request.url
     return result
